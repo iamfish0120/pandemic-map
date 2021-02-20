@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国内现存疫情图</title>
+    <!-- 引入Vue 版本 2.6.12 -->
+    <script src="./js/vue.min.js"></script>
+    <!-- 引入页面样式 -->
+    <link rel="stylesheet" href="./css/main.css">
+    <!-- 引入element-ui组件库 版本 2.15.0 -->
+    <script src="./js/index.js"></script>
+    <link rel="stylesheet" href="./css/index.css">
+    <!-- 引入echarts和地图 -->
+    <script src="./js/echarts.min.js"></script>
+    <script src="./js/china.js"></script>
+    <!-- 引入axios -->
+    <script src="./js/axios.min.js"></script>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <div class="main">
+      <div class="content">
+        <!-- <div>{{overview}}</div> -->
+        <div class="map-box" id="map"></div>
+        <div class="overview">
+          <div class="info">
+            <div class="num" style="color:#ff6a57">{{overview.currentConfirmedCount}}</div>
+            <div class="text">现存确诊</div>
+            <div class="text"><span style="color:#717171;">较昨日</span><span style="color:#ff6a57">{{addPlusOrMinus(overview.currentConfirmedIncr)}}</span></div>
+          </div>
+          <div class="info midInfo">
+            <div class="num" style="color:#e86d48">{{overview.seriousCount}}</div>
+            <div class="text">无症状</div>
+            <div class="text"><span style="color:#717171;">较昨日</span><span style="color:#e86d48">{{addPlusOrMinus(overview.seriousIncr)}}</span></div>
+          </div>
+          <div class="info">
+            <div class="num" style="color:#476da0">{{overview.suspectedCount}}</div>
+            <div class="text">境外输入</div>
+            <div class="text"><span style="color:#717171;">较昨日</span><span style="color:#476da0">{{addPlusOrMinus(overview.suspectedIncr)}}</span></div>
+          </div>
+          <div class="info">
+            <div class="num" style="color:#e83132">{{overview.confirmedCount}}</div>
+            <div class="text">累计确诊</div>
+            <div class="text"><span style="color:#717171;">较昨日</span><span style="color:#e83132">{{addPlusOrMinus(overview.confirmedIncr)}}</span></div>
+          </div>
+          <div class="info midInfo">
+            <div class="num" style="color:#10aeb5">{{overview.curedCount}}</div>
+            <div class="text">累计治愈</div>
+            <div class="text"><span style="color:#717171;">较昨日</span><span style="color:#10aeb5">{{addPlusOrMinus(overview.curedIncr)}}</span></div>
+          </div>
+          <div class="info">
+            <div class="num" style="color:#4d5054">{{overview.deadCount}}</div>
+            <div class="text">累计死亡</div>
+            <div class="text"><span style="color:#717171;">较昨日</span><span style="color:#4d5054">{{addPlusOrMinus(overview.deadIncr)}}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="table">
+        <el-table :data="tableData" row-key='key' border  style="width: 100%;" :tree-props="{children: 'cities', hasChildren: 'hasChildren'}">
+          <el-table-column prop="areaName" label="地区" ></el-table-column>
+          <el-table-column prop="confirmedCount" label="累计确诊" sortable></el-table-column>
+          <el-table-column prop="currentConfirmedCount" label="现存确诊" sortable></el-table-column>
+          <el-table-column prop="curedCount" label="治愈人数" sortable></el-table-column>
+          <el-table-column prop="deadCount" label="死亡人数" sortable></el-table-column>
+        </el-table>
+      </div>
+    </div>
+  </div>
+</body>
+<script>
+  new Vue({
+    el: '#app',
+    data() {
+      return {
+        citiesUrl: 'http://api.tianapi.com/txapi/ncovcity/index?key=5d4fb67d8bd16c1fd371311e334a4bd0',
+        overviewUrl: 'http://api.tianapi.com/txapi/ncov/index?key=5d4fb67d8bd16c1fd371311e334a4bd0',
+        tableData: [],
+        provinceData: [],
+        overview: {},
+      }
+    },
+    created() {
+      
+    },
+    mounted() {
+      this.getCitiesData().then((res) => {
+        this.tableData = this.initCitiesData(res)
+        res.map((item) => {
+          this.provinceData.push({
+            name: item.provinceShortName,
+            confirmedCount: item.confirmedCount, 
+            value: item.currentConfirmedCount, 
+            curedCount: item.curedCount,
+            deadCount: item.deadCount
+          }) 
+        })
+          // 加入南海诸岛数据
+        this.provinceData.push({
+            name: '南海诸岛', 
+            confirmedCount: '未统计', 
+            value: '未统计', 
+            curedCount: '未统计',
+            deadCount: '未统计'
+        });
+          let option = {
+            // backgroundColor: '#f3f3f3',
+            title: {  
+              text: '国内疫情图',  
+              subtext: '现存确诊',  
+              left:'center' ,
+              top: 50,
+              textStyle: {
+                  fontSize: '28'
+              }, 
+            },
+            tooltip: {
+              triggerOn: 'mousemove',
+              formatter: function(params) {
+                return `累计确诊：${params.data.confirmedCount}<br/>
+                  当前确诊：${params.data.value}<br />
+                  治愈人数：${params.data.curedCount}<br />
+                  死亡人数：${params.data.deadCount}`;
+              }
+            },
+            series: [{  
+              type: 'map',  
+              map: 'china',
+              data: this.provinceData,
+              label: {
+                show: true
+              }    
+            }],
+            visualMap: [{
+              type: 'piecewise',
+              pieces: [
+                { gt: 10000 },
+                { gte: 1000, lte: 9999 },
+                { gte: 500, lte: 999 },
+                { gte: 100, lte: 499 },
+                { gte: 10, lte: 99 },
+                { gte: 1, lte: 9 },
+                { value: 0 }
+              ],
+              inRange: {
+                  color: [ '#fff', '#fff2cf', '#fdd2a0', '#ff8c71', '#e64b45','#bd1316' ]
+              },
+            }]
+          }
+          const myChart = echarts.init(document.getElementById('map'));
+          myChart.setOption(option)
+        })
+        this.getOverviewData().then(res => {
+          this.overview = res[0].desc
+      })
+    },
+    computed: {
+      addPlusOrMinus(number) {
+        return function(number) {
+          if(number > 0) {
+            return '+' + number
+          }else {
+            return number
+          }
+        }
+      }
+    },
+    methods: {
+      getCitiesData() {
+        let requestTime = JSON.parse(localStorage.getItem('requestTime'))
+        let flag = true
+        if(requestTime) {
+          if(new Date().getTime() - requestTime >= 6000000) {
+            flag = true
+          } else {
+            flag = false
+          }
+        } else {
+          flag = true
+        }
+        if(flag) {
+          let vm = this
+          return new Promise((resolve, reject) => {
+            axios.get(vm.citiesUrl).then((res) => {
+              localStorage.setItem('requestTime',new Date().getTime())
+              let key = 1
+              let localCitiesData = res.data.newslist
+              localCitiesData.forEach((province) => {
+                province.key = key++
+                if(province.cities.length > 0) {
+                  province.cities.forEach((city) => {
+                    city.key = key++
+                  })
+                }
+              })
+              localStorage.setItem('localCitiesData',JSON.stringify(localCitiesData))
+              resolve(res.data.newslist)
+            }).catch((err) => {
+              reject(err)
+            })
+          })
+        } else {
+          return new Promise((resolve, reject) => {
+            resolve(JSON.parse(localStorage.getItem('localCitiesData')))
+          })
+        }
+      },
+      getOverviewData() {
+        let requestTime = JSON.parse(localStorage.getItem('requestTime'))
+        let flag = true
+        if(requestTime) {
+          if(new Date().getTime() - requestTime >= 6000000) {
+            flag = true
+          } else {
+            flag = false
+          }
+        } else {
+          flag = true
+        }
+        if(flag) {
+          let vm = this
+          return new Promise((resolve, reject) => {
+            axios.get(vm.overviewUrl).then((res) => {
+              localStorage.setItem('localOverviewData',JSON.stringify(res.data.newslist))
+              resolve(res.data.newslist)
+            }).catch((err) => {
+              reject(err)
+            })
+          })
+        } else {
+          return new Promise((resolve, reject) => {
+            resolve(JSON.parse(localStorage.getItem('localOverviewData')))
+          })
+        }
+      },
+      initCitiesData(dataArray) {
+        let str = JSON.parse(JSON.stringify(dataArray).replace(/provinceName/g, 'areaName').replace(/cityName/g, 'areaName'))
+        return str
+      }
+    }
+  })
+</script>
+</html>
