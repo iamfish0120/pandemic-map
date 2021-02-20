@@ -6,6 +6,9 @@
 http://47.107.50.244:7653/fish
 #### 所需资源
 Vue v2.6.12 https://cn.vuejs.org/
+
 Element-ui v2.15.0 https://element.eleme.cn/#/zh-CN
+
 echarts v4.6.0  https://www.echartsjs.com/zh/index.html
+
 数据来源   https://www.tianapi.com/
